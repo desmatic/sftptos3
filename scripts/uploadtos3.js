@@ -23,6 +23,8 @@ export const uploadFile = async () => {
         const today = `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`
         const sftp = new sftpClient()
         const sftpSSHKey = ""
+        const filename = "test.txt"
+        const filedir = "/home/sftpsource"
 
         return sftp
             .connect({
@@ -31,16 +33,16 @@ export const uploadFile = async () => {
                 privateKey: sftpSSHKey,
             })
             .then(async () => {
-                const bodyData = await sftp.get('remote/file');
-                const contentType = fileTypeFromBuffer(bodyData);
+                const bodyData = await sftp.get(`${filedir}/${filename}`);
+                const { mime } = fileTypeFromBuffer(bodyData);
                 await uploadtoS3({
                     Bucket: process.env.FEED_BUCKET,
                     Body: bodyData,
-                    ContentType: contentType,
-                    Key: `${today}/feed.json`,
+                    ContentType: mime,
+                    Key: `${today}/${filename}`,
                 })
                 return formatJSONResponse({
-                    message: "File downloaded and transformed successfully!",
+                    message: "File uploaded to s3 successfully!",
                 })
             })
             .catch((err) => {
