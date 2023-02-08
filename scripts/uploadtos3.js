@@ -1,6 +1,6 @@
 import { S3 } from "aws-sdk"
 import sftpClient from "ssh2-sftp-client"
-import fs from "fs"
+import { fileTypeFromBuffer } from 'file-type'
 
 const s3Client = new S3({
     accessKeyId: process.env.AWS_ACCESS_KEY,
@@ -9,7 +9,6 @@ const s3Client = new S3({
 
 export async function uploadtoS3(s3Data) {
     console.info("---- UPLODAING TO S3", s3Data.Bucket, s3Data.Key);
-
     try {
         return await s3Client.upload(s3Data).promise();
     } catch (error) {
@@ -20,7 +19,6 @@ export async function uploadtoS3(s3Data) {
 
 export const uploadFile = async () => {
     try {
-
         const d = new Date()
         const today = `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`
         const sftp = new sftpClient()
@@ -33,16 +31,14 @@ export const uploadFile = async () => {
                 privateKey: sftpSSHKey,
             })
             .then(async () => {
-                await sftp.fastGet("/upload/feed.xml", "/tmp/feed.xml")
-                const bodyData = fs.readFileSync("/tmp/feed.xml", "utf-8")
-
+                const bodyData = await sftp.get('remote/file');
+                const contentType = fileTypeFromBuffer(bodyData);
                 await uploadtoS3({
                     Bucket: process.env.FEED_BUCKET,
                     Body: bodyData,
-                    ContentType: "application/json",
+                    ContentType: contentType,
                     Key: `${today}/feed.json`,
                 })
-
                 return formatJSONResponse({
                     message: "File downloaded and transformed successfully!",
                 })
@@ -51,7 +47,6 @@ export const uploadFile = async () => {
                 console.log("Catch Error: ", err)
                 throw new Error(err)
             })
-
     } catch (error) {
         console.log(error)
         return internalServerError(error)
